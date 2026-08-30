@@ -36,8 +36,10 @@ export function Shell() {
   const market = marketConfigs.find((m) => m.id === marketId);
   const active = surfaces.find((s) => location.pathname.startsWith(s.route));
 
-  const cycleTheme = () => {
-    const next: ThemeMode = mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light';
+  // Flip whatever is on screen rather than cycling through 'system' — from the
+  // system default the first click would otherwise appear to do nothing.
+  const toggleTheme = () => {
+    const next: ThemeMode = resolved === 'dark' ? 'light' : 'dark';
     setMode(next);
     storeMode(next);
   };
@@ -96,8 +98,8 @@ export function Shell() {
             variant="ghost"
             size="sm"
             icon={resolved === 'dark' ? 'sun' : 'moon'}
-            onClick={cycleTheme}
-            title={`Theme: ${mode}`}
+            onClick={toggleTheme}
+            title={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`}
             aria-label="Toggle theme"
           />
         </div>
