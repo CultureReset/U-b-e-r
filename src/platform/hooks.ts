@@ -4,6 +4,7 @@
  * not the whole console.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type React from 'react';
 import { bus, type WorldEventType } from '@core/events';
 import type { WorldEventRecord } from '@core/types';
 import type { ID } from '@core/types';
@@ -93,4 +94,24 @@ export function useTicker(intervalMs = 1000): number {
     return () => clearInterval(id);
   }, [intervalMs]);
   return tick;
+}
+
+/**
+ * Measures an element's height. Used to tell the map how much of the viewport
+ * a bottom sheet is covering, so it can fit its content into what's left.
+ */
+export function useMeasuredHeight<T extends HTMLElement>(): [React.RefObject<T>, number] {
+  const ref = useRef<T>(null);
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => setHeight(entry.contentRect.height));
+    observer.observe(node);
+    setHeight(node.getBoundingClientRect().height);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, height];
 }

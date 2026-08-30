@@ -11,7 +11,7 @@ import { appConfig, catalogConfig, getPaymentMethodsForMarket, getProductsForMar
 import { haversineKm } from '@core/geo';
 import type { ID, MenuItem, Merchant, Order, Place } from '@core/types';
 import { distance, money, plural, priceTierLabel } from '@platform/format';
-import { useAction, useCurrentRider } from '@platform/hooks';
+import { useAction, useCurrentRider, useMeasuredHeight } from '@platform/hooks';
 import { useWorld } from '@platform/store';
 import * as eatsActions from '@platform/actions/eats';
 import { useSurfaceAccent } from '@platform/theme';
@@ -92,16 +92,7 @@ export function EatsSurface() {
       )}
 
       {tab === 'browse' && view.kind === 'tracking' && activeOrder && (
-        <div className="col" style={{ height: '100%', position: 'relative' }}>
-          <div style={{ position: 'absolute', inset: 0 }}>
-            <OrderMap order={activeOrder} />
-          </div>
-          <div style={{ marginTop: 'auto', zIndex: 5, maxHeight: '76%' }}>
-            <Sheet>
-              <OrderTracker order={activeOrder} onDone={() => setView({ kind: 'browse' })} />
-            </Sheet>
-          </div>
-        </div>
+        <TrackingScreen order={activeOrder} onDone={() => setView({ kind: 'browse' })} />
       )}
 
       {tab === 'orders' && (
@@ -159,6 +150,22 @@ export function EatsSurface() {
 
 const cartMerchantIdFor = (view: View, cartMerchantId?: ID) =>
   view.kind === 'merchant' ? view.merchantId : cartMerchantId;
+
+function TrackingScreen({ order, onDone }: { order: Order; onDone: () => void }) {
+  const [sheetRef, sheetHeight] = useMeasuredHeight<HTMLDivElement>();
+  return (
+    <div className="col" style={{ height: '100%', position: 'relative' }}>
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <OrderMap order={order} bottomInset={sheetHeight} />
+      </div>
+      <div ref={sheetRef} style={{ marginTop: 'auto', zIndex: 5, maxHeight: '62%' }}>
+        <Sheet>
+          <OrderTracker order={order} onDone={onDone} />
+        </Sheet>
+      </div>
+    </div>
+  );
+}
 
 /* -------------------------------- Browse -------------------------------- */
 
@@ -697,7 +704,7 @@ function EatsAccount() {
 
 /* --------------------------------- Map ---------------------------------- */
 
-function OrderMap({ order }: { order: Order }) {
+function OrderMap({ order, bottomInset = 0 }: { order: Order; bottomInset?: number }) {
   const state = useWorld((s) => s.state);
   const courier = order.courierId ? state.drivers[order.courierId] : undefined;
 
@@ -733,6 +740,7 @@ function OrderMap({ order }: { order: Order }) {
       markers={markers}
       routes={routes}
       fitTo={[...order.stops.map((s) => s.place.at), ...(courier ? [courier.at] : [])]}
+      viewInset={{ top: 44, bottom: bottomInset }}
     />
   );
 }

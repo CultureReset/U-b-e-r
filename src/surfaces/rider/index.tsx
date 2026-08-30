@@ -9,7 +9,7 @@ import { appConfig, getMarket, getProductsForMarket, orgConfig, paymentMethods }
 import { haversineKm } from '@core/geo';
 import type { ID, Place } from '@core/types';
 import { distance, money, moneyCompact, plural } from '@platform/format';
-import { useAction, useCurrentRider } from '@platform/hooks';
+import { useAction, useCurrentRider, useMeasuredHeight } from '@platform/hooks';
 import { useWorld } from '@platform/store';
 import * as riderActions from '@platform/actions/rider';
 import { useSurfaceAccent } from '@platform/theme';
@@ -37,6 +37,7 @@ export function RiderSurface() {
   const [editingStop, setEditingStop] = useState<number | null>(null);
   const [pickingOnMap, setPickingOnMap] = useState<number | null>(null);
   const [activeTripId, setActiveTripId] = useState<ID | undefined>();
+  const [sheetRef, sheetHeight] = useMeasuredHeight<HTMLDivElement>();
   const [detailTripId, setDetailTripId] = useState<ID | undefined>();
 
   const products = getProductsForMarket(state.marketId, 'ride');
@@ -199,6 +200,7 @@ export function RiderSurface() {
               markers={markers}
               routes={routes}
               fitTo={fitTo.length > 1 ? fitTo : undefined}
+              viewInset={{ top: 44, bottom: sheetHeight }}
               follow={driver && activeTrip?.status === 'in_progress' ? driver.at : undefined}
               onSelectPoint={
                 pickingOnMap !== null
@@ -234,7 +236,16 @@ export function RiderSurface() {
             </div>
           )}
 
-          <div style={{ marginTop: 'auto', zIndex: 5, maxHeight: stage === 'idle' ? '52%' : '78%' }}>
+          {/* The sheet must never squeeze the live map into a strip — tracking is
+              the one stage where watching the vehicle move is the point. */}
+          <div
+            ref={sheetRef}
+            style={{
+              marginTop: 'auto',
+              zIndex: 5,
+              maxHeight: stage === 'idle' ? '52%' : stage === 'tracking' ? '62%' : '78%',
+            }}
+          >
             <Sheet grip={stage !== 'idle'} onClose={stage === 'planning' ? () => setStage('idle') : undefined}>
               {stage === 'idle' && rider && (
                 <IdleSheet

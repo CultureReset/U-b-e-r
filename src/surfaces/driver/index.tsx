@@ -17,7 +17,7 @@ import {
 import { polygonCentroid } from '@core/geo';
 import type { DispatchOffer, Order, Trip } from '@core/types';
 import { day, distance, duration, money, moneyCompact, percent, relative } from '@platform/format';
-import { useAction, useCurrentDriver, useTicker } from '@platform/hooks';
+import { useAction, useCurrentDriver, useMeasuredHeight, useTicker } from '@platform/hooks';
 import { useWorld } from '@platform/store';
 import * as driverActions from '@platform/actions/driver';
 import { useSurfaceAccent } from '@platform/theme';
@@ -87,6 +87,7 @@ function DriveScreen({
   const state = useWorld((s) => s.state);
   const online = driver.status !== 'offline';
   const topOffer = offers[0];
+  const [sheetRef, sheetHeight] = useMeasuredHeight<HTMLDivElement>();
 
   const { markers, routes, fitTo } = useMemo(() => {
     const markers: MapMarker[] = [
@@ -140,7 +141,13 @@ function DriveScreen({
   return (
     <div className="col" style={{ height: '100%', position: 'relative' }}>
       <div style={{ position: 'absolute', inset: 0 }}>
-        <Map marketId={state.marketId} markers={markers} routes={routes} fitTo={fitTo} follow={driver.at} />
+        <Map
+          marketId={state.marketId}
+          markers={markers}
+          routes={routes}
+          fitTo={fitTo}
+          viewInset={{ top: 88, bottom: sheetHeight }}
+        />
       </div>
 
       {/* Online pill */}
@@ -171,7 +178,7 @@ function DriveScreen({
         </button>
       </div>
 
-      <div style={{ marginTop: 'auto', zIndex: 5, maxHeight: '80%' }}>
+      <div ref={sheetRef} style={{ marginTop: 'auto', zIndex: 5, maxHeight: '68%' }}>
         <Sheet grip={false}>
           {topOffer ? (
             <OfferCard

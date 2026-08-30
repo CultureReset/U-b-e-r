@@ -35,6 +35,14 @@ export interface FeeConfig {
   rate: number;
   basis: 'fare' | 'goods' | 'subtotal';
   appliesTo: ('ride' | 'delivery')[];
+  /**
+   * Restrict the fee to specific products. Empty means every product in the
+   * listed verticals. A flat fee sized for a car trip can swallow a third of a
+   * cheap two-wheeler fare, so cheap product lines carry their own.
+   */
+  productIds: string[];
+  /** Products explicitly exempt from this fee, applied after productIds. */
+  excludeProductIds: string[];
   /** Fee is paid to the platform (true) or passed through to a third party. */
   platformRevenue: boolean;
   /** Only charge when the order/trip satisfies this optional threshold. */
@@ -215,6 +223,22 @@ export const feeConfigs: FeeConfig[] = [
     rate: 0,
     basis: 'fare',
     appliesTo: ['ride'],
+    productIds: [],
+    excludeProductIds: ['moto', 'share'],
+    platformRevenue: true,
+    enabled: true,
+  },
+  {
+    id: 'booking-light',
+    label: 'Booking fee',
+    description: 'Reduced booking fee on the lowest-cost ride types.',
+    kind: 'flat',
+    amount: 0.5,
+    rate: 0,
+    basis: 'fare',
+    appliesTo: ['ride'],
+    productIds: ['moto', 'share'],
+    excludeProductIds: [],
     platformRevenue: true,
     enabled: true,
   },
@@ -227,6 +251,8 @@ export const feeConfigs: FeeConfig[] = [
     rate: 0.15,
     basis: 'goods',
     appliesTo: ['delivery'],
+    productIds: [],
+    excludeProductIds: [],
     platformRevenue: true,
     maxAmount: 12,
     enabled: true,
@@ -240,6 +266,8 @@ export const feeConfigs: FeeConfig[] = [
     rate: 0,
     basis: 'goods',
     appliesTo: ['delivery'],
+    productIds: [],
+    excludeProductIds: [],
     platformRevenue: true,
     minSubtotal: 0,
     enabled: true,
@@ -253,6 +281,8 @@ export const feeConfigs: FeeConfig[] = [
     rate: 0,
     basis: 'fare',
     appliesTo: ['ride', 'delivery'],
+    productIds: [],
+    excludeProductIds: [],
     platformRevenue: false,
     enabled: true,
   },

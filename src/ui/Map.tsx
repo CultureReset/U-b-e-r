@@ -56,6 +56,12 @@ export interface MapProps {
   fitTo?: LatLng[];
   /** Keep this point centred as it moves (follow mode). */
   follow?: LatLng;
+  /**
+   * Screen-space regions that are covered by chrome (a bottom sheet, a header).
+   * Fitting accounts for them, so markers never end up hidden behind the very
+   * panel that describes them.
+   */
+  viewInset?: { top?: number; bottom?: number };
   interactive?: boolean;
   showRoads?: boolean;
   showLegend?: ReactNode;
@@ -129,6 +135,7 @@ export const Map = memo(function Map({
   zones = [],
   fitTo,
   follow,
+  viewInset,
   interactive = true,
   showRoads = true,
   showLegend,
@@ -191,22 +198,45 @@ export const Map = memo(function Map({
     };
   }, [viewport]);
 
-  // Correct for the aspect ratio so the city is never stretched.
+  // Correct for the aspect ratio so the city is never stretched, then zoom out
+  // and shift so the content lands in the part of the viewport that is visible.
   const aspectBounds = useMemo<Bounds>(() => {
     const latSpan = bounds.north - bounds.south;
     const lngSpan = bounds.east - bounds.west;
     if (size.width === 0 || size.height === 0 || latSpan === 0 || lngSpan === 0) return bounds;
+
     const viewAspect = size.width / size.height;
     const dataAspect = lngSpan / latSpan;
+    let fitted: Bounds;
     if (dataAspect > viewAspect) {
-      const targetLat = lngSpan / viewAspect;
-      const pad = (targetLat - latSpan) / 2;
-      return { ...bounds, north: bounds.north + pad, south: bounds.south - pad };
+      const pad = (lngSpan / viewAspect - latSpan) / 2;
+      fitted = { ...bounds, north: bounds.north + pad, south: bounds.south - pad };
+    } else {
+      const pad = (latSpan * viewAspect - lngSpan) / 2;
+      fitted = { ...bounds, east: bounds.east + pad, west: bounds.west - pad };
     }
-    const targetLng = latSpan * viewAspect;
-    const pad = (targetLng - lngSpan) / 2;
-    return { ...bounds, east: bounds.east + pad, west: bounds.west - pad };
-  }, [bounds, size]);
+
+    const top = Math.max(0, viewInset?.top ?? 0);
+    const bottom = Math.max(0, viewInset?.bottom ?? 0);
+    const visible = size.height - top - bottom;
+    if (!viewInset || visible <= 40) return fitted;
+
+    // Scale both spans about the centre so the content fits the visible band,
+    // then slide it so that band's centre lines up with the content's.
+    const scale = size.height / visible;
+    const latCentre = (fitted.north + fitted.south) / 2;
+    const lngCentre = (fitted.east + fitted.west) / 2;
+    const halfLat = ((fitted.north - fitted.south) / 2) * scale;
+    const halfLng = ((fitted.east - fitted.west) / 2) * scale;
+    const shift = ((top - bottom) / 2 / size.height) * halfLat * 2;
+
+    return {
+      north: latCentre + halfLat + shift,
+      south: latCentre - halfLat + shift,
+      east: lngCentre + halfLng,
+      west: lngCentre - halfLng,
+    };
+  }, [bounds, size, viewInset]);
 
   const toXY = useCallback(
     (p: LatLng) => {

@@ -196,3 +196,28 @@ describe('cancellation and tipping', () => {
     expect([...suggestions].sort((a, b) => a - b)).toEqual(suggestions);
   });
 });
+
+describe('fee scoping', () => {
+  it('charges the lower booking fee on cheap ride types', () => {
+    const moto = buildQuote({ productId: 'moto', marketId: BOG, distanceKm: 7.5, durationMin: 12 });
+    const go = buildQuote({ productId: 'go', marketId: BOG, distanceKm: 7.5, durationMin: 12 });
+    const motoBooking = moto.lines.find((l) => l.id === 'fee-booking-light')!.amount;
+    const goBooking = go.lines.find((l) => l.id === 'fee-booking')!.amount;
+    expect(motoBooking).toBeLessThan(goBooking);
+    // A product must never be charged both booking fees.
+    expect(moto.lines.filter((l) => l.label === 'Booking fee')).toHaveLength(1);
+    expect(go.lines.filter((l) => l.label === 'Booking fee')).toHaveLength(1);
+  });
+
+  it('leaves the earner a fair share of a cheap fare', () => {
+    const moto = buildQuote({ productId: 'moto', marketId: BOG, distanceKm: 7.5, durationMin: 12 });
+    expect(moto.earnerPayout / moto.total).toBeGreaterThan(0.55);
+  });
+
+  it('charges every ride product exactly one booking fee', () => {
+    for (const productId of ['go', 'share', 'comfort', 'xl', 'black', 'assist', 'moto']) {
+      const quote = buildQuote({ productId, marketId: BOG, distanceKm: 6, durationMin: 14 });
+      expect(quote.lines.filter((l) => l.label === 'Booking fee'), productId).toHaveLength(1);
+    }
+  });
+});

@@ -206,7 +206,13 @@ export function buildQuote(input: QuoteInput): Quote {
       sum((input.surcharges ?? []).map((s) => s.amount)),
   );
 
-  const applicableFees = feeConfigs.filter((f) => f.enabled && f.appliesTo.includes(vertical));
+  const applicableFees = feeConfigs.filter(
+    (f) =>
+      f.enabled &&
+      f.appliesTo.includes(vertical) &&
+      (f.productIds.length === 0 || f.productIds.includes(input.productId)) &&
+      !f.excludeProductIds.includes(input.productId),
+  );
   for (const fee of applicableFees) {
     if (fee.id === 'small-order' && goods >= smallOrderThreshold) continue;
     if (fee.id === 'small-order' && goods === 0) continue;
