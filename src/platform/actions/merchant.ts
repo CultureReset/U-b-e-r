@@ -227,6 +227,25 @@ export function merchantPayoutSummary(state: WorldState, merchantId: ID) {
   };
 }
 
+/**
+ * Today's trading figures, derived from the orders themselves so the number a
+ * merchant sees always reconciles with the list underneath it.
+ */
+export function merchantToday(state: WorldState, merchantId: ID) {
+  const dayStart = new Date(state.now);
+  dayStart.setHours(0, 0, 0, 0);
+  const orders = Object.values(state.orders).filter(
+    (o) => o.merchantId === merchantId && o.placedAt >= dayStart.getTime(),
+  );
+  const delivered = orders.filter((o) => o.status === 'delivered');
+  return {
+    orders: orders.length,
+    delivered: delivered.length,
+    revenue: round2(delivered.reduce((acc, o) => acc + o.lines.reduce((s, l) => s + l.lineTotal, 0), 0)),
+    cancelled: orders.filter((o) => o.status === 'cancelled').length,
+  };
+}
+
 /** Live queue for the merchant dashboard, bucketed by what needs attention. */
 export function merchantQueue(state: WorldState, merchantId: ID): Record<string, Order[]> {
   const orders = Object.values(state.orders).filter((o) => o.merchantId === merchantId);

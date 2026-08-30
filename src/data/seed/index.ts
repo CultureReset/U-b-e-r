@@ -7,7 +7,7 @@ import type { DriverProfile, Merchant, Org, RiderProfile, Timestamp } from '@cor
 import { createRng, resetIds, round2, sortBy } from '@core/util';
 import { haversineKm, polygonCentroid } from '@core/geo';
 import type { WorldState } from '@data/ports';
-import { generateHistory } from './history';
+import { generateHistory, merchantAppeal } from './history';
 import { generateMerchant } from './merchants';
 import { generateOrgs } from './orgs';
 import { generateDriver, generateRider } from './people';
@@ -94,8 +94,14 @@ export function seedWorld(marketId: string, now: Timestamp = Date.now()): WorldS
     sortBy(candidates.filter(worksBoth), (d) => haversineKm(demandCentre, d.at))[0] ??
     candidates[0] ??
     driversWithHistory[0];
+  // Default to the storefront that attracts the most demand, so the merchant
+  // console opens on a store with both history and a live queue.
   const defaultMerchant =
-    merchantsWithStats.find((m) => m.isOpen && m.menu.length > 1) ?? merchantsWithStats[0];
+    sortBy(
+      merchantsWithStats.filter((m) => m.isOpen && m.menu.length > 1),
+      merchantAppeal,
+      'desc',
+    )[0] ?? merchantsWithStats[0];
   const defaultOrg: Org | undefined = orgs[0];
 
   const state: WorldState = {

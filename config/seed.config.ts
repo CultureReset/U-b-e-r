@@ -31,8 +31,8 @@ export interface SeedConfig {
 
 export const seedConfig: SeedConfig = {
   perMarket: {
-    drivers: 64,
-    riders: 40,
+    drivers: 110,
+    riders: 60,
     merchants: 34,
     historicalTrips: 220,
     historicalOrders: 160,

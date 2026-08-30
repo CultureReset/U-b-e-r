@@ -92,7 +92,7 @@ export const appConfig: AppConfig = {
     seed: 20260830,
     startHour: 12,
     startMinute: 40,
-    ambientDemand: { enabled: true, ridesPerHour: 26, ordersPerHour: 18 },
+    ambientDemand: { enabled: true, ridesPerHour: 110, ordersPerHour: 70 },
     autoDriverAcceptAfterSec: 12,
   },
   features: {

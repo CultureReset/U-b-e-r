@@ -1,0 +1,15 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const page = await browser.newPage({ viewport: { width: 1440, height: 940 } });
+const errs = []; page.on('pageerror', e => errs.push(e.message));
+await page.goto('http://127.0.0.1:4173/merchant', { waitUntil: 'domcontentloaded' });
+await page.evaluate(() => localStorage.clear());
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.seg > button', { hasText: '12' }).first().click();
+await page.waitForTimeout(22000);
+await page.locator('.seg > button', { hasText: '1×' }).first().click();
+await page.waitForTimeout(500);
+await page.screenshot({ path: process.argv[2] });
+console.log('errors:', errs.slice(0,4).join(' || ') || 'none');
+console.log((await page.locator('.console-body').innerText()).slice(0,400).replace(/\n+/g,' | '));
+await browser.close();

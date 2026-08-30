@@ -35,6 +35,15 @@ import { menuIndex } from './merchants';
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
+/**
+ * How much of the market's order volume a storefront attracts. Rating
+ * dominates and price tier dampens — popular, affordable stores are busy and
+ * expensive ones are not, which is what makes any single merchant's console
+ * worth looking at.
+ */
+export const merchantAppeal = (merchant: Merchant): number =>
+  Math.pow(Math.max(0.1, merchant.rating - 3.6), 2.4) / merchant.priceTier;
+
 /** Weighted hour-of-day picker so history clusters at commute and meal times. */
 function pickHour(rng: Rng, kind: 'ride' | 'order'): number {
   const rideWeights = [1, 0.6, 0.4, 0.4, 0.8, 2, 4, 7, 8, 5, 3, 3, 4, 4, 3, 3.5, 5, 8, 8.5, 6, 4, 3, 2.5, 1.6];
@@ -50,7 +59,10 @@ function pastTimestamp(rng: Rng, now: Timestamp, kind: 'ride' | 'order'): Timest
   const dayStart = now - daysAgo * DAY_MS;
   const midnight = new Date(dayStart);
   midnight.setHours(0, 0, 0, 0);
-  return midnight.getTime() + hour * HOUR_MS + rng.int(0, 59) * 60_000;
+  const candidate = midnight.getTime() + hour * HOUR_MS + rng.int(0, 59) * 60_000;
+  // Today's slots can land after the current hour; a completed job must never
+  // carry a future timestamp, so those roll back a day.
+  return candidate > now ? candidate - DAY_MS : candidate;
 }
 
 function orgContextFor(rider: RiderProfile, orgs: Org[], rng: Rng, amount: number): Trip['orgContext'] {
@@ -246,7 +258,7 @@ export function generateHistory(
   /* ------------------------------- Orders ------------------------------- */
   for (let i = 0; i < seedConfig.perMarket.historicalOrders; i++) {
     const customer = rng.pick(riders);
-    const merchant = rng.pick(merchants);
+    const merchant = rng.pickWeighted(merchants, merchantAppeal);
     const product = rng.pickWeighted(deliveryProducts, (p) => (p.id === 'eats-standard' ? 6 : p.id === 'eats-priority' ? 2 : 1));
     const eligibleCouriers = deliveryDrivers.filter(
       (d) => d.optedProductIds.includes(product.id) && product.eligibleVehicleClasses.includes(d.vehicle.classId),
@@ -283,16 +295,25 @@ export function generateHistory(
         })
         .filter((s): s is NonNullable<typeof s> => Boolean(s));
       const unitPrice = round2(item.price + selections.reduce((acc, s) => acc + s.priceDelta, 0));
-      lines.push({
-        id: nextId('oln'),
-        itemId: item.id,
-        name: item.name,
-        unitPrice,
-        quantity,
-        selections,
-        lineTotal: round2(unitPrice * quantity),
-        fulfilment: 'ready',
-      });
+      const signature = `${item.id}|${selections.map((s) => s.optionIds.join(',')).join('|')}`;
+      const existing = lines.find(
+        (l) => `${l.itemId}|${l.selections.map((s) => s.optionIds.join(',')).join('|')}` === signature,
+      );
+      if (existing) {
+        existing.quantity += quantity;
+        existing.lineTotal = round2(existing.unitPrice * existing.quantity);
+      } else {
+        lines.push({
+          id: nextId('oln'),
+          itemId: item.id,
+          name: item.name,
+          unitPrice,
+          quantity,
+          selections,
+          lineTotal: round2(unitPrice * quantity),
+          fulfilment: 'ready',
+        });
+      }
     }
 
     const goodsSubtotal = round2(lines.reduce((acc, l) => acc + l.lineTotal, 0));

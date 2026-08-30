@@ -40,6 +40,7 @@ import type { WorldState } from '@data/ports';
 import { computeZoneSnapshots, surchargesAt, surgeAt } from '@data/seed/zones';
 import { makePlace, randomDemandPoint } from '@data/seed/places';
 import { menuIndex, recomputePrepMinutes } from '@data/seed/merchants';
+import { merchantAppeal } from '@data/seed/history';
 
 /** Arrival threshold — a vehicle within this distance counts as "here". */
 const ARRIVAL_M = 45;
@@ -824,13 +825,15 @@ function generateAmbientDemand(ctx: TickCtx): void {
   // Orders
   if (ctx.rng.next() < perTick(cfg.ordersPerHour)) {
     const customers = Object.values(ctx.state.riders).filter((r) => r.marketId === ctx.state.marketId);
+    // The operator's own storefront is included: an empty queue would make the
+    // merchant console untestable. Those orders wait on a human to accept them.
     const merchants = Object.values(ctx.state.merchants).filter(
-      (m) => m.marketId === ctx.state.marketId && m.isOpen && !m.settings.paused && m.id !== ctx.state.session.merchantId,
+      (m) => m.marketId === ctx.state.marketId && m.isOpen && !m.settings.paused,
     );
     const products = getProductsForMarket(ctx.state.marketId, 'delivery');
     if (customers.length && merchants.length && products.length) {
       const customer = ctx.rng.pick(customers.filter((c) => c.id !== ctx.state.session.riderId) ?? customers);
-      const merchant = ctx.rng.pick(merchants);
+      const merchant = ctx.rng.pickWeighted(merchants, merchantAppeal);
       const product = ctx.rng.pickWeighted(products, (p) => (p.id === 'eats-standard' ? 5 : 1.2));
       createOrderInternal(ctx, { customerId: customer.id, merchantId: merchant.id, productId: product.id });
     }
@@ -905,7 +908,7 @@ function createOrderInternal(
   const items = [...menuIndex(merchant).values()].filter((i) => i.available);
   if (items.length === 0) return undefined;
 
-  const lines = Array.from({ length: ctx.rng.int(1, 4) }, () => {
+  const rawLines = Array.from({ length: ctx.rng.int(1, 4) }, () => {
     const item = ctx.rng.pickWeighted(items, (i) => (i.popular ? 3 : 1));
     const quantity = ctx.rng.pickWeighted([1, 1, 2], (q) => 3 - q);
     const selections = item.modifierGroups
@@ -933,6 +936,18 @@ function createOrderInternal(
       fulfilment: 'pending' as const,
     };
   });
+
+  // Merge identical picks the way a real cart would, rather than listing the
+  // same item twice on one order.
+  const lines = rawLines.reduce<typeof rawLines>((acc, line) => {
+    const signature = (l: (typeof rawLines)[number]) =>
+      `${l.itemId}|${l.selections.map((s) => s.optionIds.join(',')).join('|')}`;
+    const existing = acc.find((l) => signature(l) === signature(line));
+    if (!existing) return [...acc, line];
+    existing.quantity += line.quantity;
+    existing.lineTotal = round2(existing.unitPrice * existing.quantity);
+    return acc;
+  }, []);
 
   const goodsSubtotal = round2(lines.reduce((a, l) => a + l.lineTotal, 0));
   const dropAt = ctx.rng.bool(0.7) ? customer.savedPlaces[0].at : randomDemandPoint(market, ctx.rng);
