@@ -19,6 +19,7 @@
     "paths": {
       "@core/*": ["src/core/*"],
       "@data/*": ["src/data/*"],
+      "@data": ["src/data/index.ts"],
       "@platform/*": ["src/platform/*"],
       "@ui/*": ["src/ui/*"],
       "@surfaces/*": ["src/surfaces/*"],
