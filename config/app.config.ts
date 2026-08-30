@@ -37,6 +37,12 @@ export interface AppConfig {
     secondsPerTick: number;
     /** Deterministic seed so every boot produces the same world. */
     seed: number;
+    /**
+     * Local hour the simulated clock starts at. Boot at a busy time of day so
+     * the market has something to show; set to null to start at wall clock.
+     */
+    startHour: number | null;
+    startMinute: number;
     /** Auto-generate ambient demand so the world feels alive. */
     ambientDemand: { enabled: boolean; ridesPerHour: number; ordersPerHour: number };
     /** Auto-accept offers on behalf of AI drivers after this many simulated seconds. */
@@ -84,6 +90,8 @@ export const appConfig: AppConfig = {
     tickMs: 500,
     secondsPerTick: 6,
     seed: 20260830,
+    startHour: 12,
+    startMinute: 40,
     ambientDemand: { enabled: true, ridesPerHour: 26, ordersPerHour: 18 },
     autoDriverAcceptAfterSec: 12,
   },

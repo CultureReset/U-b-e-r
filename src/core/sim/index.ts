@@ -31,6 +31,7 @@ import type {
   LedgerEntry,
   Merchant,
   Order,
+  OrderStatus,
   Timestamp,
   Trip,
 } from '@core/types';
@@ -188,16 +189,22 @@ function resolveAutoOffers(ctx: TickCtx): void {
   for (const offer of Object.values(ctx.state.offers)) {
     if (offer.status !== 'pending') continue;
 
-    if (ctx.now >= offer.expiresAt) {
-      ctx.state.offers[offer.id] = { ...offer, status: 'expired', respondedAt: ctx.now };
-      ctx.touched.offers.push(offer.id);
-      bus.emit('offer.expired', 'dispatch', { jobId: offer.jobId, driverId: offer.driverId }, offer.id, ctx.now);
+    const isPlayer = offer.driverId === ctx.state.session.driverId;
+
+    // An AI earner decides at its own decision time. That check has to come
+    // before expiry: one tick can advance the clock past the whole offer
+    // window at high simulation speeds, and expiring first would mean no
+    // offer is ever accepted.
+    const decided = !isPlayer && ctx.now - offer.createdAt >= autoAfterMs;
+
+    if (!decided) {
+      if (ctx.now >= offer.expiresAt) {
+        ctx.state.offers[offer.id] = { ...offer, status: 'expired', respondedAt: ctx.now };
+        ctx.touched.offers.push(offer.id);
+        bus.emit('offer.expired', 'dispatch', { jobId: offer.jobId, driverId: offer.driverId }, offer.id, ctx.now);
+      }
       continue;
     }
-
-    const isPlayer = offer.driverId === ctx.state.session.driverId;
-    if (isPlayer) continue;
-    if (ctx.now - offer.createdAt < autoAfterMs) continue;
 
     const driver = ctx.state.drivers[offer.driverId];
     if (!driver || driver.status !== 'online') {
@@ -279,9 +286,13 @@ export function acceptOfferInternal(offerId: ID, ctx: TickCtx): boolean {
     ctx.touched.trips.push(trip.id);
     bus.emit('trip.assigned', driver.displayName, { tripId: trip.id, eta: offer.preview.approachMinutes }, trip.id, ctx.now);
   } else if (order) {
+    // Courier assignment and food preparation are independent. Overwriting a
+    // still-preparing order with 'courier_assigned' would strand it: the
+    // merchant's ready timer only runs while the order is preparing.
+    const status = order.status === 'preparing' ? 'preparing' : 'courier_assigned';
     ctx.state.orders[order.id] = {
       ...order,
-      status: order.status === 'ready' ? 'courier_assigned' : 'courier_assigned',
+      status,
       courierId: driver.id,
       courierAssignedAt: ctx.now,
       approachRoute,
@@ -327,6 +338,24 @@ function progressTrips(ctx: TickCtx): void {
         ctx.touched.trips.push(trip.id);
         bus.emit('trip.searching', 'system', { tripId: trip.id }, trip.id, ctx.now);
         offerJob(ctx.state.trips[trip.id], ctx);
+        break;
+      }
+      case 'no_drivers': {
+        // The rider's own request stays put so they can retry by hand; ambient
+        // requests give up rather than piling into the world forever.
+        if (trip.riderId === ctx.state.session.riderId) break;
+        const strandedSec = (ctx.now - trip.requestedAt) / 1000;
+        if (strandedSec > 180) {
+          ctx.state.trips[trip.id] = {
+            ...trip,
+            status: 'cancelled',
+            cancelledAt: ctx.now,
+            cancelledBy: 'system',
+            cancellationReason: 'no-drivers',
+            timeline: [...trip.timeline, { status: 'cancelled', at: ctx.now, actor: 'system', note: 'no-drivers' }],
+          };
+          ctx.touched.trips.push(trip.id);
+        }
         break;
       }
       case 'searching': {
@@ -542,13 +571,35 @@ function bumpQuests(driver: DriverProfile, ctx: TickCtx): Record<ID, number> {
 /* Order progression                                                   */
 /* ------------------------------------------------------------------ */
 
+/** Has the kitchen finished? Runs for every order still awaiting its ready time. */
+function readyDeadline(order: Order, merchant: Merchant | undefined): Timestamp {
+  const prepMs = (merchant?.currentPrepMinutes ?? 15) * 60_000;
+  return (order.merchantAcceptedAt ?? order.placedAt) + prepMs;
+}
+
+const AWAITING_PREP: OrderStatus[] = ['preparing', 'courier_assigned', 'courier_at_merchant'];
+
 function progressOrders(ctx: TickCtx): void {
   const market = getMarket(ctx.state.marketId);
 
   for (const order of Object.values(ctx.state.orders)) {
     const merchant = ctx.state.merchants[order.merchantId];
 
-    switch (order.status) {
+    // The ready time has to be evaluated independently of the courier's
+    // progress — a courier who arrives early must not stop the kitchen clock.
+    if (!order.readyAt && AWAITING_PREP.includes(order.status)) {
+      if (ctx.now >= readyDeadline(order, merchant)) {
+        setOrder(
+          ctx,
+          order.id,
+          { readyAt: ctx.now, status: order.status === 'preparing' && !order.courierId ? 'ready' : order.status },
+          merchant?.name ?? 'merchant',
+        );
+        bus.emit('order.ready', merchant?.name ?? 'merchant', { orderId: order.id }, order.id, ctx.now);
+      }
+    }
+
+    switch (ctx.state.orders[order.id].status) {
       case 'scheduled': {
         if (order.scheduledFor && ctx.now >= order.scheduledFor - (merchant?.currentPrepMinutes ?? 15) * 60_000) {
           setOrder(ctx, order.id, { status: 'placed', placedAt: ctx.now }, 'system');
@@ -571,21 +622,16 @@ function progressOrders(ctx: TickCtx): void {
         break;
       }
       case 'preparing': {
-        // Dispatch a courier so they arrive around the time food is ready.
-        const prepMs = (merchant?.currentPrepMinutes ?? 15) * 60_000;
-        const acceptedAt = order.merchantAcceptedAt ?? order.placedAt;
-        const readyAt = acceptedAt + prepMs;
-
+        // Dispatch a courier so they arrive around the time the food is ready.
         if (!order.courierId) {
           const outstanding = Object.values(ctx.state.offers).filter(
             (o) => o.jobId === order.id && o.status === 'pending',
           );
-          if (outstanding.length === 0 && ctx.now >= readyAt - 6 * 60_000) offerJob(order, ctx);
-        }
-
-        if (ctx.now >= readyAt) {
-          setOrder(ctx, order.id, { status: order.courierId ? 'courier_assigned' : 'ready', readyAt: ctx.now }, merchant?.name ?? 'merchant');
-          bus.emit('order.ready', merchant?.name ?? 'merchant', { orderId: order.id }, order.id, ctx.now);
+          if (outstanding.length === 0 && ctx.now >= readyDeadline(order, merchant) - 6 * 60_000) {
+            offerJob(order, ctx);
+          }
+        } else if (ctx.state.orders[order.id].readyAt) {
+          setOrder(ctx, order.id, { status: 'courier_assigned' }, merchant?.name ?? 'merchant');
         }
         break;
       }

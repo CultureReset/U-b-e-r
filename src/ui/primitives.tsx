@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './Icon';
 import { avatarColors, initialsOf } from '@platform/format';
+import { appConfig } from '@config';
 
 /* ------------------------------- Button ------------------------------- */
 
@@ -387,8 +388,18 @@ export function Stars({
 /* ------------------------------ Countdown ----------------------------- */
 
 /** Ring countdown used on dispatch offers. */
-export function Countdown({ expiresAt, now, size = 40 }: { expiresAt: number; now: number; size?: number }) {
-  const totalMs = 25_000;
+export function Countdown({
+  expiresAt,
+  now,
+  size = 40,
+  windowMs = appConfig.limits.offerTimeoutSec * 1000,
+}: {
+  expiresAt: number;
+  now: number;
+  size?: number;
+  windowMs?: number;
+}) {
+  const totalMs = windowMs;
   const remaining = Math.max(0, expiresAt - now);
   const ratio = Math.max(0, Math.min(1, remaining / totalMs));
   const radius = size / 2 - 3;

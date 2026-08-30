@@ -4,7 +4,8 @@
  */
 import { appConfig, getMarket, seedConfig } from '@config';
 import type { DriverProfile, Merchant, Org, RiderProfile, Timestamp } from '@core/types';
-import { createRng, resetIds, round2 } from '@core/util';
+import { createRng, resetIds, round2, sortBy } from '@core/util';
+import { haversineKm, polygonCentroid } from '@core/geo';
 import type { WorldState } from '@data/ports';
 import { generateHistory } from './history';
 import { generateMerchant } from './merchants';
@@ -81,8 +82,18 @@ export function seedWorld(marketId: string, now: Timestamp = Date.now()): WorldS
   });
 
   const defaultRider = ridersWithOrgs.find((r) => r.orgMembership) ?? ridersWithOrgs[0];
+  // Default to an online earner who works both verticals and sits nearest the
+  // busiest zone — the account most likely to actually receive offers.
+  const worksBoth = (d: DriverProfile) =>
+    d.optedProductIds.some((p) => p.startsWith('eats') || p === 'parcel') &&
+    d.optedProductIds.some((p) => !p.startsWith('eats') && p !== 'parcel');
+  const busiestZone = [...market.zones].sort((a, b) => b.demandWeight - a.demandWeight)[0];
+  const demandCentre = busiestZone ? polygonCentroid(busiestZone.polygon) : market.center;
+  const candidates = driversWithHistory.filter((d) => d.status !== 'offline');
   const defaultDriver =
-    driversWithHistory.find((d) => d.optedProductIds.length > 2 && d.status !== 'offline') ?? driversWithHistory[0];
+    sortBy(candidates.filter(worksBoth), (d) => haversineKm(demandCentre, d.at))[0] ??
+    candidates[0] ??
+    driversWithHistory[0];
   const defaultMerchant =
     merchantsWithStats.find((m) => m.isOpen && m.menu.length > 1) ?? merchantsWithStats[0];
   const defaultOrg: Org | undefined = orgs[0];

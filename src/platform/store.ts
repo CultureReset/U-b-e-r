@@ -47,8 +47,13 @@ export interface WorldStore {
 }
 
 const bootTime = (): Timestamp => {
-  // Start the simulated clock at "now" so history reads naturally.
-  return Date.now();
+  // Boot the simulated clock at the configured hour of *today*, so history
+  // reads naturally against a real date but the market opens at a lively time.
+  const { startHour, startMinute } = appConfig.simulation;
+  if (startHour === null) return Date.now();
+  const start = new Date();
+  start.setHours(startHour, startMinute, 0, 0);
+  return start.getTime();
 };
 
 const emptyWorld = (): WorldState => seedWorld(defaultMarketId, bootTime());
@@ -155,3 +160,15 @@ export const useSimControls = () => useWorld((s) => s.sim);
 export const useNow = () => useWorld((s) => s.state.now);
 
 export const worldActions = () => useWorld.getState();
+
+/**
+ * Debug hook. The whole world is a plain object, so exposing the store makes
+ * the prototype inspectable from the console — useful when reasoning about
+ * dispatch decisions without instrumenting the UI.
+ */
+declare global {
+  interface Window {
+    urus?: typeof useWorld;
+  }
+}
+if (typeof window !== 'undefined') window.urus = useWorld;
