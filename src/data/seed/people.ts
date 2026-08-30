@@ -105,9 +105,7 @@ export function generateRider(marketId: string, rng: Rng, now: number): RiderPro
 export function generateDriver(marketId: string, rng: Rng, now: number): DriverProfile {
   const market = getMarket(marketId);
   const account = makeAccount(marketId, rng, 'drv', now);
-  const vehicleClass = rng.pickWeighted(vehicleClasses, (v) =>
-    v.id === 'compact' || v.id === 'sedan' ? 4 : v.id === 'bicycle' ? 0.6 : v.id === 'luxury' ? 0.8 : 1.6,
-  );
+  const vehicleClass = rng.pickWeighted(vehicleClasses, (v) => v.supplyWeight);
   const vehicle = makeVehicle(rng, vehicleClass.id);
   const tierPoints = Math.round(rng.gaussian(1600, 1600, 0, 9000));
   const tier = getTierForPoints(tierPoints);

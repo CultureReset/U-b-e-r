@@ -45,6 +45,9 @@ import { merchantAppeal } from '@data/seed/history';
 /** Arrival threshold — a vehicle within this distance counts as "here". */
 const ARRIVAL_M = 45;
 
+/** How many matching waves a request gets before it is abandoned. */
+const NO_DRIVER_RETRIES = 3;
+
 export interface TickResult {
   state: WorldState;
   /** Ids of entities that changed, so the UI can be surgical if it wants. */
@@ -346,6 +349,20 @@ function progressTrips(ctx: TickCtx): void {
         // requests give up rather than piling into the world forever.
         if (trip.riderId === ctx.state.session.riderId) break;
         const strandedSec = (ctx.now - trip.requestedAt) / 1000;
+
+        // Supply moves. A failed wave is not proof that nobody will ever be in
+        // range, so retry a few times before abandoning the request.
+        const attempts = trip.timeline.filter((entry) => entry.status === 'searching').length;
+        if (attempts < NO_DRIVER_RETRIES && strandedSec > 40) {
+          ctx.state.trips[trip.id] = {
+            ...trip,
+            status: 'searching',
+            timeline: [...trip.timeline, { status: 'searching', at: ctx.now, actor: 'system', note: 'retry' }],
+          };
+          ctx.touched.trips.push(trip.id);
+          break;
+        }
+
         if (strandedSec > 180) {
           ctx.state.trips[trip.id] = {
             ...trip,

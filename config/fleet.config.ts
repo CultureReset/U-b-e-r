@@ -13,6 +13,11 @@ export interface VehicleClassConfig {
   congestionFactor: number;
   /** Cargo capacity in abstract units; delivery batching uses this. */
   cargoUnits: number;
+  /**
+   * Relative share of the generated fleet driving this class. Premium classes
+   * need enough supply for their product line to be serviceable at all.
+   */
+  supplyWeight: number;
   models: string[];
   colors: string[];
 }
@@ -67,6 +72,7 @@ export const vehicleClasses: VehicleClassConfig[] = [
     speedFactor: 1,
     congestionFactor: 1,
     cargoUnits: 4,
+    supplyWeight: 6,
     models: ['Chevrolet Onix', 'Renault Kwid', 'Kia Picanto', 'Hyundai i10', 'Toyota Yaris'],
     colors: ['White', 'Silver', 'Grey', 'Red', 'Blue'],
   },
@@ -78,6 +84,7 @@ export const vehicleClasses: VehicleClassConfig[] = [
     speedFactor: 1.02,
     congestionFactor: 1,
     cargoUnits: 6,
+    supplyWeight: 6,
     models: ['Toyota Corolla', 'Mazda 3', 'Honda Civic', 'Nissan Sentra', 'Volkswagen Jetta'],
     colors: ['Black', 'White', 'Grey', 'Dark blue'],
   },
@@ -89,6 +96,7 @@ export const vehicleClasses: VehicleClassConfig[] = [
     speedFactor: 0.98,
     congestionFactor: 1.05,
     cargoUnits: 10,
+    supplyWeight: 3,
     models: ['Toyota RAV4', 'Mazda CX-5', 'Chevrolet Tracker', 'Renault Duster'],
     colors: ['Black', 'White', 'Silver', 'Green'],
   },
@@ -100,6 +108,7 @@ export const vehicleClasses: VehicleClassConfig[] = [
     speedFactor: 0.92,
     congestionFactor: 1.1,
     cargoUnits: 18,
+    supplyWeight: 1.2,
     models: ['Mercedes Vito', 'Hyundai H1', 'Toyota Hiace'],
     colors: ['White', 'Silver', 'Black'],
   },
@@ -111,6 +120,7 @@ export const vehicleClasses: VehicleClassConfig[] = [
     speedFactor: 1.05,
     congestionFactor: 1,
     cargoUnits: 6,
+    supplyWeight: 2.4,
     models: ['Mercedes E-Class', 'BMW 5 Series', 'Audi A6', 'Volvo S90'],
     colors: ['Black', 'Graphite', 'Midnight blue'],
   },
@@ -122,6 +132,7 @@ export const vehicleClasses: VehicleClassConfig[] = [
     speedFactor: 1.15,
     congestionFactor: 0.35,
     cargoUnits: 3,
+    supplyWeight: 3,
     models: ['Bajaj Pulsar', 'Yamaha FZ', 'Honda CB125', 'AKT NKD'],
     colors: ['Black', 'Red', 'Blue'],
   },
@@ -133,6 +144,7 @@ export const vehicleClasses: VehicleClassConfig[] = [
     speedFactor: 0.45,
     congestionFactor: 0.2,
     cargoUnits: 2,
+    supplyWeight: 0.8,
     models: ['City bike', 'E-bike'],
     colors: ['Black', 'Teal', 'Orange'],
   },
@@ -159,8 +171,8 @@ export const driverTiers: DriverTierConfig[] = [
 
 export const driverTags: DriverTagConfig[] = [
   { id: 'comfort-certified', label: 'Comfort certified', description: 'Newer vehicle, high rating.', prevalence: 0.45 },
-  { id: 'black-certified', label: 'Black certified', description: 'Professional licence, luxury vehicle.', prevalence: 0.12 },
-  { id: 'assist-certified', label: 'Assist certified', description: 'Trained in mobility assistance.', prevalence: 0.18 },
+  { id: 'black-certified', label: 'Black certified', description: 'Professional licence, luxury vehicle.', prevalence: 0.55 },
+  { id: 'assist-certified', label: 'Assist certified', description: 'Trained in mobility assistance.', prevalence: 0.34 },
   { id: 'food-safety', label: 'Food safety', description: 'Insulated bag and handling training.', prevalence: 0.62 },
   { id: 'alcohol-delivery', label: 'Alcohol delivery', description: 'Licensed to deliver alcohol.', prevalence: 0.3 },
 ];
