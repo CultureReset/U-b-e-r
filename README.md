@@ -151,9 +151,30 @@ prototype stays demonstrable while the backend is being built.
 
 ---
 
+## What this is, and what it isn't
+
+It is a **complete working model of how Uber's business works** — the marketplace
+mechanics, the economics and all six product surfaces, running live against one
+another. It is **not a clone of Uber the company's software**. Missing, by design:
+
+- **No accounts or auth.** Identity is a pointer into the world; each surface has
+  a switcher for who you are acting as.
+- **No payment processing.** `payment.captured` is an event and a ledger row, not
+  a transaction — no processor, authorisation hold, refund or chargeback flow.
+- **No real geography.** Streets are generated from each market's parameters, so
+  you cannot route to a real address or read real traffic. Swapping in a real
+  basemap and routing service is a defined seam (`MapProvider`), not a rewrite.
+- **No backend.** The REST adapter satisfies the storage port but the server
+  behind it does not exist yet.
+- **One language.** Business values are all config-driven, but interface copy is
+  written in the components; there is no translation layer.
+- **Narrower than the real thing.** No freight, transit, rentals, teen accounts,
+  reserve, or the operational systems around them — support tooling, fraud and
+  risk, insurance, background-check integrations, per-market tax filing.
+
 ## Known limits
 
-This is a prototype, and a few things are deliberately simplified:
+Within what is built, a few things are deliberately simplified:
 
 - **Vehicles ignore each other.** There is congestion by hour of day and by road
   class, but no car-following, no signals and no collision.

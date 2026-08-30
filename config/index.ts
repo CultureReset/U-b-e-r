@@ -21,7 +21,14 @@ import { appConfig } from './app.config';
 import { marketConfigs, defaultMarketId } from './market.config';
 import { productConfigs } from './products.config';
 import { rateCards, feeConfigs, surgeConfig, driverPayConfig, smallOrderThreshold } from './pricing.config';
-import { vehicleClasses, driverTiers, driverTags, incentives, onboardingRequirements } from './fleet.config';
+import {
+  vehicleClasses,
+  driverTiers,
+  driverTags,
+  incentives,
+  onboardingRequirements,
+  tierPointsPerJob,
+} from './fleet.config';
 import { catalogConfig } from './catalog.config';
 import { paymentMethods, promotions, payoutConfig } from './payments.config';
 import { orgConfig } from './org.config';
@@ -34,7 +41,7 @@ export const platformConfig = {
   defaultMarketId,
   products: productConfigs,
   pricing: { rateCards, fees: feeConfigs, surge: surgeConfig, driverPay: driverPayConfig, smallOrderThreshold },
-  fleet: { vehicleClasses, driverTiers, driverTags, incentives, onboardingRequirements },
+  fleet: { vehicleClasses, driverTiers, driverTags, incentives, onboardingRequirements, tierPointsPerJob },
   catalog: catalogConfig,
   payments: { methods: paymentMethods, promotions, payout: payoutConfig },
   org: orgConfig,

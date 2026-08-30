@@ -2,7 +2,7 @@
  * Rider actions. Quotes, requests, cancellations, ratings, sharing and chat.
  * Every one of these runs through the same engines the simulator uses.
  */
-import { appConfig, getMarket, getProduct, orgConfig, type LatLng } from '@config';
+import { appConfig, driverPayConfig, getMarket, getProduct, orgConfig, type LatLng } from '@config';
 import { bus } from '@core/events';
 import { cancellationCharge, buildQuote } from '@core/pricing';
 import { findRoute, graphFor } from '@core/routing';
@@ -288,7 +288,8 @@ export function cancelTrip(tripId: ID, actor: 'rider' | 'driver' | 'system', rea
           accountKind: 'driver',
           kind: 'adjustment',
           label: 'Cancellation compensation',
-          amount: round2(charge.amount * 0.8),
+          // Declared in config; never pays out more than was actually collected.
+          amount: round2(Math.min(charge.amount, driverPayConfig.cancellationCompensation)),
         });
       }
     }

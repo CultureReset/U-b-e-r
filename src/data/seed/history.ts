@@ -12,6 +12,7 @@ import {
   getProductsForMarket,
   getPaymentMethodsForMarket,
   orgConfig,
+  payoutConfig,
   seedConfig,
 } from '@config';
 import { buildQuote, tipSuggestions } from '@core/pricing';
@@ -387,7 +388,7 @@ export function generateHistory(
 
     if (!cancelled) {
       bump(courier.id, quote.earnerPayout, quote.distanceKm, tip);
-      const commission = round2(goodsSubtotal * 0.3);
+      const commission = round2(goodsSubtotal * payoutConfig.merchantCommission.deliveryOrders);
       ledger.push(
         {
           id: nextId('led'),

@@ -150,6 +150,12 @@ export const vehicleClasses: VehicleClassConfig[] = [
   },
 ];
 
+/**
+ * Tier points awarded per completed job. Tier progression is a business rule,
+ * not a simulation detail, so it lives here with the tiers it feeds.
+ */
+export const tierPointsPerJob: { ride: number; delivery: number } = { ride: 10, delivery: 8 };
+
 export const driverTiers: DriverTierConfig[] = [
   { id: 'bronze', label: 'Bronze', pointsRequired: 0, color: '#a4703c', perks: ['Standard support'] },
   { id: 'silver', label: 'Silver', pointsRequired: 800, color: '#9aa3b0', perks: ['Priority support', '+2% earnings'] },

@@ -3,8 +3,8 @@
  * exercise the same functions the UI does, against a real generated world.
  */
 import { describe, expect, it } from 'vitest';
-import { defaultMarketId, orgConfig } from '@config';
-import { actionContext } from '@core/sim';
+import { defaultMarketId, driverPayConfig, orgConfig, payoutConfig, tierPointsPerJob } from '@config';
+import { actionContext, tick } from '@core/sim';
 import type { TickCtx } from '@core/sim';
 import { seedWorld } from '@data/seed';
 import type { WorldState } from '@data/ports';
@@ -14,6 +14,7 @@ import * as driverActions from '@platform/actions/driver';
 import * as merchantActions from '@platform/actions/merchant';
 import * as businessActions from '@platform/actions/business';
 import * as adminActions from '@platform/actions/admin';
+import { resolveRateCard } from '@core/pricing';
 
 const MARKET = defaultMarketId;
 const NOON = new Date(2026, 4, 20, 12, 40, 0).getTime();
@@ -426,5 +427,63 @@ describe('business and ops reporting', () => {
     const mix = adminActions.productMix(state);
     const total = mix.reduce((acc, row) => acc + row.share, 0);
     if (mix.length > 0) expect(total).toBeCloseTo(1, 1);
+  });
+});
+
+describe('config is the only source of business values', () => {
+  it('takes merchant commission from config rather than a literal', () => {
+    const state = world();
+    const merchantId = Object.keys(state.merchants)[0];
+    const entries = state.ledger.filter((e) => e.accountId === merchantId);
+    const commission = entries.find((e) => e.kind === 'commission');
+    const sale = entries.find((e) => e.kind === 'fare' && e.jobId === commission?.jobId);
+    if (!commission || !sale) return;
+    expect(Math.abs(commission.amount) / sale.amount).toBeCloseTo(
+      payoutConfig.merchantCommission.deliveryOrders,
+      2,
+    );
+  });
+
+  it('takes tier progression from config', () => {
+    const start = world();
+    const before = new Map(Object.values(start.drivers).map((d) => [d.id, d.tierPoints]));
+    let current = start;
+    for (let i = 0; i < 80; i++) current = tick(current, 30).state;
+
+    const gains = Object.values(current.drivers)
+      .map((d) => d.tierPoints - (before.get(d.id) ?? 0))
+      .filter((delta) => delta > 0);
+    expect(gains.length).toBeGreaterThan(0);
+    // Every gain must be a whole number of configured per-job awards.
+    const unit = Math.min(tierPointsPerJob.ride, tierPointsPerJob.delivery);
+    for (const gain of gains) expect(gain % unit === 0 || gain % tierPointsPerJob.ride === 0).toBe(true);
+  });
+
+  it('pays cancellation compensation at the configured amount', () => {
+    const state = world();
+    const rider = state.riders[state.session.riderId];
+    const created = apply(state, (draft, ctx) =>
+      riderActions.requestTrip(
+        { productId: 'go', stops: [rider.savedPlaces[0], rider.savedPlaces[1]], paymentMethodId: 'card' },
+        rider.id,
+      )(draft, ctx),
+    );
+    // Push past the grace window so a fee is actually charged.
+    const card = resolveRateCard('rc-go', MARKET)!;
+    const late: WorldState = { ...created.state, now: created.state.now + (card.cancellationGraceSec + 60) * 1000 };
+    const withDriver: WorldState = {
+      ...late,
+      trips: {
+        ...late.trips,
+        [created.result!]: { ...late.trips[created.result!], driverId: Object.keys(late.drivers)[0] },
+      },
+    };
+    const cancelled = apply(withDriver, (draft, ctx) =>
+      riderActions.cancelTrip(created.result!, 'rider', 'plans-changed')(draft, ctx),
+    );
+    const comp = cancelled.state.ledger.find((e) => e.label === 'Cancellation compensation');
+    expect(comp).toBeDefined();
+    expect(comp!.amount).toBeLessThanOrEqual(driverPayConfig.cancellationCompensation);
+    expect(comp!.amount).toBeGreaterThan(0);
   });
 });

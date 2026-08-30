@@ -18,6 +18,8 @@ import {
   getVehicleClass,
   incentives,
   driverPayConfig,
+  payoutConfig,
+  tierPointsPerJob,
 } from '@config';
 import { bus } from '@core/events';
 import { haversineKm } from '@core/geo';
@@ -555,7 +557,7 @@ export function completeTripInternal(tripId: ID, ctx: TickCtx): boolean {
       jobs: driver.lifetime.jobs + 1,
       distanceKm: round2(driver.lifetime.distanceKm + actualKm),
     },
-    tierPoints: driver.tierPoints + 10,
+    tierPoints: driver.tierPoints + tierPointsPerJob.ride,
     questProgress: bumpQuests(driver, ctx),
   };
 
@@ -787,14 +789,14 @@ export function deliverOrderInternal(orderId: ID, ctx: TickCtx): boolean {
       jobs: courier.lifetime.jobs + 1,
       distanceKm: round2(courier.lifetime.distanceKm + settlement.distanceKm),
     },
-    tierPoints: courier.tierPoints + 8,
+    tierPoints: courier.tierPoints + tierPointsPerJob.delivery,
     questProgress: bumpQuests(courier, ctx),
   };
 
   if (customer) ctx.state.riders[customer.id] = { ...customer, lifetimeOrders: customer.lifetimeOrders + 1 };
 
   const goods = round2(order.lines.reduce((acc, l) => acc + l.lineTotal, 0));
-  const commission = round2(goods * 0.3);
+  const commission = round2(goods * payoutConfig.merchantCommission.deliveryOrders);
   ledgerEntry(ctx, order.customerId, 'rider', 'fare', `${merchant?.name ?? 'Order'}`, -settlement.total, order);
   ledgerEntry(ctx, courier.id, 'driver', 'payout', `Delivery · ${merchant?.name ?? ''}`, settlement.earnerPayout, order);
   if (merchant) {
