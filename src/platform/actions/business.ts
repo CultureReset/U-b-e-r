@@ -57,7 +57,8 @@ export function buildReport(state: WorldState, orgId: ID, reportId: ID): ReportR
       }
       case 'day': {
         const d = new Date(jobTimestamp(job));
-        key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        // Zero-padded so the key sorts chronologically across month boundaries.
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         break;
       }
@@ -83,8 +84,9 @@ export function buildReport(state: WorldState, orgId: ID, reportId: ID): ReportR
     share: round2(b.amount / total),
   }));
 
+  // A time series reads chronologically; every other report reads by size.
   return report.groupBy === 'day'
-    ? rows
+    ? [...rows].sort((a, b) => a.key.localeCompare(b.key))
     : sortBy(rows, (r) => r.amount, 'desc');
 }
 
