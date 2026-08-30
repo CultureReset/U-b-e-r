@@ -79,11 +79,11 @@ export const marketConfigs: MarketConfig[] = [
     center: { lat: 4.6655, lng: -74.0855 },
     bounds: bogotaBounds,
     roadNetwork: {
-      cols: 26,
-      rows: 24,
-      jitter: 0.3,
-      arterialEvery: 5,
-      pruneRatio: 0.14,
+      cols: 62,
+      rows: 56,
+      jitter: 0.32,
+      arterialEvery: 8,
+      pruneRatio: 0.16,
       speedKph: { local: 22, arterial: 40, highway: 62 },
       congestionByHour: flatCongestion(
         { 6: 1.25, 7: 1.6, 8: 1.75, 9: 1.4, 12: 1.2, 13: 1.25, 16: 1.35, 17: 1.7, 18: 1.85, 19: 1.5, 20: 1.2 },
@@ -162,11 +162,11 @@ export const marketConfigs: MarketConfig[] = [
     center: { lat: 37.7749, lng: -122.4194 },
     bounds: { north: 37.81, south: 37.71, east: -122.36, west: -122.51 },
     roadNetwork: {
-      cols: 24,
-      rows: 20,
-      jitter: 0.22,
-      arterialEvery: 4,
-      pruneRatio: 0.1,
+      cols: 54,
+      rows: 44,
+      jitter: 0.24,
+      arterialEvery: 8,
+      pruneRatio: 0.12,
       speedKph: { local: 26, arterial: 45, highway: 78 },
       congestionByHour: flatCongestion(
         { 7: 1.45, 8: 1.7, 9: 1.35, 12: 1.15, 16: 1.4, 17: 1.75, 18: 1.7, 19: 1.35 },

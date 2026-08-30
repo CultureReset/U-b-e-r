@@ -68,7 +68,10 @@ export function createRng(seed: number | string): Rng {
       const u = (next() + next() + next() + next() - 2) / 2;
       return Math.min(max, Math.max(min, mean + u * spread * 1.6));
     },
-    fork: (salt) => createRng(hashString(`${state}:${salt}`)),
+    // Forking consumes randomness from the parent, so successive forks with
+    // the same salt produce different streams — otherwise every entity
+    // generated in a loop would come out identical.
+    fork: (salt) => createRng(hashString(`${state}:${salt}:${next()}`)),
   };
 
   return rng;

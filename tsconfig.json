@@ -23,6 +23,7 @@
       "@platform/*": ["src/platform/*"],
       "@ui/*": ["src/ui/*"],
       "@surfaces/*": ["src/surfaces/*"],
+      "@app/*": ["src/app/*"],
       "@config/*": ["config/*"],
       "@config": ["config/index.ts"]
     }

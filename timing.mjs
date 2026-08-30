@@ -1,0 +1,15 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const page = await browser.newPage({ viewport: { width: 1440, height: 940 } });
+const errs = [];
+page.on('pageerror', (e) => errs.push(e.message));
+await page.goto(process.argv[2], { waitUntil: 'domcontentloaded' });
+await page.evaluate(() => localStorage.clear());
+const t0 = Date.now();
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForSelector('.map svg', { timeout: 20000 });
+console.log('boot ms:', Date.now() - t0);
+await page.waitForTimeout(3000);
+await page.screenshot({ path: process.argv[3] });
+console.log('errors:', errs.slice(0,4).join(' || ') || 'none');
+await browser.close();

@@ -13,6 +13,7 @@ export default defineConfig({
       '@platform': r('./src/platform'),
       '@ui': r('./src/ui'),
       '@surfaces': r('./src/surfaces'),
+      '@app': r('./src/app'),
       '@config': r('./config'),
     },
   },
